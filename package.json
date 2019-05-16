@@ -2,7 +2,7 @@
   "name": "bf-auth-frontend-react",
   "version": "0.1.0",
   "description": "",
-  "main": "Auth.js",
+  "main": "src/index.js",
   "scripts": {
     "start": "webpack-dev-server --hot --progress --colors",
     "test": "echo \"Error: no test specified\" && exit 1",
