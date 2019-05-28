@@ -607,7 +607,14 @@ const authReady = store.dispatch((dispatch, getState) => {
   })
 })
 
+function authGetProviderToken(providerName) {
+  return store.dispatch(authTryCatch((dispatch, getState) => authReady.then(() => {
+    return authFetch(dispatch, getState, '/auth/token/' + providerName).then(result => result.providerToken)
+  })))
+}
+
 export default {
+  getProviderToken: authGetProviderToken,
   authReady,
   AuthAvatar: authPick('me')(AuthAvatar),
   AuthSecurityWrapper: authPick('login', 'logout', 'me')(AuthSecurityWrapper),
