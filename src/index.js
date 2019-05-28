@@ -500,13 +500,14 @@ class AuthTimeoutDialog extends React.Component {
     },
 
     title: 'Session is about to expire!',
+    warnThreshold: 5*60*1000,
   }
 
   render() {
-    const {me, currentTime, timeLeft, handleTouchSession, title, children} = this.props
+    const {me, currentTime, timeLeft, handleTouchSession, title, warnThreshold, children} = this.props
 
     console.log('AuthTimeoutDialog', timeLeft, handleTouchSession, children)
-    if (!me || me.userId === undefined || !timeLeft || timeLeft === 0) {
+    if (!me || me.userId === undefined || !timeLeft || timeLeft === 0 || timeLeft >= warnThreshold) {
       return <div />
     }
     return <Dialog open={true} onClose={handleTouchSession}>
