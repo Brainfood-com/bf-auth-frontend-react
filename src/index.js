@@ -22,9 +22,9 @@ import Timer from 'react-compound-timer'
 
 import thunk from 'redux-thunk'
 import {createStore, combineReducers, applyMiddleware, compose} from 'redux'
-import {createProvider, connect} from 'react-redux'
+import {Provider, connect} from 'react-redux'
 
-const AuthReduxProvider = createProvider('auth-store')
+const AuthContext = React.createContext()
 
 const ACTIONS = Enum(
   'AUTH_CONFIG',
@@ -269,8 +269,8 @@ const authPick = (...picked) => Component => {
     }
     return result
   }
-  const ConnectedComponent = connect(mapStateToProps, mapDispatchToProps, null, {storeKey: 'auth-store'})(Component)
-  return props => <AuthReduxProvider store={store}><ConnectedComponent {...props}/></AuthReduxProvider>
+  const ConnectedComponent = connect(mapStateToProps, mapDispatchToProps, null, {context: AuthContext})(Component)
+  return props => <Provider context={AuthContext} store={store}><ConnectedComponent {...props}/></Provider>
 }
 
 class AuthAvatar extends React.Component {
