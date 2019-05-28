@@ -123,13 +123,19 @@ const store = createStore(
 )
   
 const authTryCatch = handler => {
-  return async (dispatch, getState) => {
-    try {
-      return handler(dispatch, getState)
-    } catch(e) {
-      console.error(e)
-      dispatch({type: ACTIONS.AUTH_ERROR, e})
-    }
+  return (dispatch, getState) => {
+    return new Promise((resolve, reject) => {
+      const onCatch = e => {
+        console.error(e)
+        dispatch({type: ACTIONS.AUTH_ERROR, e})
+        reject(e)
+      }
+      try {
+        handler(dispatch, getState).then(resolve, onCatch)
+      } catch(e) {
+        onCatch(e)
+      }
+    })
   }
 }
 const authFetch = (dispatch, getState, path) => {
@@ -162,7 +168,7 @@ const authLogin = () => authTryCatch((dispatch, getState) => {
 const authLogout = () => authTryCatch((dispatch, getState) => {
   return authFetch(dispatch, getState, '/auth/logout').then(() => {
     dispatch({type: ACTIONS.AUTH_LOGOUT})
-    dispatch(authUserMe())
+    return dispatch(authUserMe())
   })
 })
 
@@ -172,43 +178,49 @@ const authLoginProvider = provider => (dispatch, getState) => {
 
 const authProviderDone = () => (dispatch, getState) => {
   dispatch({type: ACTIONS.AUTH_LOGIN_CANCEL})
-  dispatch(authUserMe())
-  dispatch(authIsSessionActive())
+  return Promise.all([
+    dispatch(authUserMe()),
+    dispatch(authIsSessionActive()),
+  ])
 }
 
-const authIsSessionActive = () => authTryCatch(async (dispatch, getState) => {
+const authIsSessionActive = () => authTryCatch((dispatch, getState) => {
   const foo = getState().auth
-  const isSessionActiveResult = await authFetch(dispatch, getState, `/auth/isSessionActive?foo=${foo.currentTime}&bar=${foo.timeLeft}`)
-  const {isSessionActive} = isSessionActiveResult
-  const {auth: {timerId}} = getState()
-  if (timerId) {
-    clearTimeout(timerId)
-  }
-  const currentTime = Date.now()
-  let whenToCheck
-  if (isSessionActive > 5*60*1000) {
-    // more than 5m
-    whenToCheck = isSessionActive - 5*60*1000
-  } else if (isSessionActive > 1*60*1000) {
-    // between 1m and 5m
-    whenToCheck = isSessionActive - 1*60*1000
-  } else if (isSessionActive > 5*1000) {
-    // between 5s and 1m
-    whenToCheck = isSessionActive - 5*1000
-  } else if (isSessionActive) {
-    whenToCheck = isSessionActive
-  }
-  const newTimerId = whenToCheck && whenToCheck >= 0 ? setTimeout(() => dispatch(authIsSessionActive()), whenToCheck) : null
-  dispatch({type: ACTIONS.AUTH_SESSION_TIME, currentTime, timeLeft: isSessionActive, timerId: newTimerId})
-  if (!whenToCheck || whenToCheck <= 0) {
-    dispatch(authUserMe())
-  }
+  return authFetch(dispatch, getState, `/auth/isSessionActive?foo=${foo.currentTime}&bar=${foo.timeLeft}`).then(isSessionActiveResult => {
+    const {isSessionActive} = isSessionActiveResult
+    const {auth: {timerId}} = getState()
+    if (timerId) {
+      clearTimeout(timerId)
+    }
+    const currentTime = Date.now()
+    let whenToCheck
+    if (isSessionActive > 5*60*1000) {
+      // more than 5m
+      whenToCheck = isSessionActive - 5*60*1000
+    } else if (isSessionActive > 1*60*1000) {
+      // between 1m and 5m
+      whenToCheck = isSessionActive - 1*60*1000
+    } else if (isSessionActive > 5*1000) {
+      // between 5s and 1m
+      whenToCheck = isSessionActive - 5*1000
+    } else if (isSessionActive) {
+      whenToCheck = isSessionActive
+    }
+    const newTimerId = whenToCheck && whenToCheck >= 0 ? setTimeout(() => dispatch(authIsSessionActive()), whenToCheck) : null
+    dispatch({type: ACTIONS.AUTH_SESSION_TIME, currentTime, timeLeft: isSessionActive, timerId: newTimerId})
+    if (!whenToCheck || whenToCheck <= 0) {
+      return dispatch(authUserMe())
+    }
+  })
 })
 
-const authTouchSession = () => authTryCatch(async (dispatch, getState) => {
-  const touch = await authFetch(dispatch, getState, '/auth/isSessionActive?touch=true')
-  dispatch(authIsSessionActive())
-  dispatch(authUserMe())
+const authTouchSession = () => authTryCatch((dispatch, getState) => {
+  return authFetch(dispatch, getState, '/auth/isSessionActive?touch=true').then(() => {
+    return Promise.all([
+      dispatch(authIsSessionActive()),
+      dispatch(authUserMe()),
+    ])
+  })
 })
 
 const authPick = (...picked) => Component => {
@@ -586,12 +598,17 @@ class AuthTimeRemaining extends React.Component {
   }
 }
 
-store.dispatch(async (dispatch, getState) => {
-  await dispatch(authUserMe())
-  await dispatch(authIsSessionActive())
-  dispatch({type: ACTIONS.AUTH_READY})
+const authReady = store.dispatch((dispatch, getState) => {
+  return Promise.all([
+    dispatch(authUserMe()),
+    dispatch(authIsSessionActive()),
+  ]).then(() => {
+    dispatch({type: ACTIONS.AUTH_READY})
+  })
 })
+
 export default {
+  authReady,
   AuthAvatar: authPick('me')(AuthAvatar),
   AuthSecurityWrapper: authPick('login', 'logout', 'me')(AuthSecurityWrapper),
   LogoutButton: authPick('logout', 'me')(LogoutButton),
