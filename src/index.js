@@ -41,6 +41,8 @@ const ACTIONS = Enum(
   'AUTH_SESSION_TIME',
 
   'AUTH_PROVIDER_ROLES',
+
+  'AUTH_TOKEN',
 )
 
 const defaultState = {
@@ -58,6 +60,8 @@ const defaultState = {
   timerId: null,
   timeLeft: null,
   currentTime: null,
+
+  tokens: {},
 }
 export function reducer(state = defaultState, action) {
   switch (action.type) {
@@ -103,6 +107,20 @@ export function reducer(state = defaultState, action) {
         }
         return result
       }, state.providerRoles)}
+      break
+    }
+    case ACTIONS.AUTH_TOKEN: {
+      const {tokens} = state
+      const {name, token} = action
+      if (tokens[name] !== token) {
+        const newTokens = {...tokens}
+        if (token === undefined) {
+          delete newTokens[name]
+        } else {
+          newTokens[name] = token
+        }
+        state = {...state, tokens: newTokens}
+      }
       break
     }
     default:
@@ -160,7 +178,7 @@ const authUserMe = () => authTryCatch((dispatch, getState) => {
 const authLoginCancel = () => ({type: ACTIONS.AUTH_LOGIN_CANCEL})
 const authLogin = () => authTryCatch((dispatch, getState) => {
   dispatch({type: ACTIONS.AUTH_LOGIN})
-  return authFetch(dispatch, getState, '/auth/login?target=window').then(providers => {
+  return authFetch(dispatch, getState, '/auth/providers').then(providers => {
     dispatch({type: ACTIONS.AUTH_LOGIN_PROVIDERS, providers})
   })
 })
@@ -176,8 +194,14 @@ const authLoginProvider = provider => (dispatch, getState) => {
   dispatch({type: ACTIONS.AUTH_LOGIN_PROVIDER, provider})
 }
 
-const authProviderDone = () => (dispatch, getState) => {
+const authProviderDone = redirectTo => (dispatch, getState) => {
   dispatch({type: ACTIONS.AUTH_LOGIN_CANCEL})
+  const {auth: {tokens}} = getState()
+  Object.entries(tokens).forEach(([name, token]) => dispatch({type: ACTIONS.AUTH_TOKEN, name, token}))
+  if (redirectTo) {
+    window.location = redirectTo
+    return
+  }
   return Promise.all([
     dispatch(authUserMe()),
     dispatch(authIsSessionActive()),
@@ -399,6 +423,7 @@ class LoginPopup extends React.Component {
   static defaultProps = {
     authBase: null,
     provider: null,
+    redirectTo: null,
     handleAuthProviderDone() {},
     features: {
       width: 640,
@@ -408,20 +433,27 @@ class LoginPopup extends React.Component {
 
   handleOnMessage = event => {
     console.log('Auth:LoginPopup:handleOnMessage', event)
-    if (event && event.data == 'authProviderDone') {
-      this.props.handleAuthProviderDone()
+    const {data} = event || {}
+    if (!data) {
+      return
+    }
+    const {type, redirectTo} = data
+    if (type === 'authProviderDone') {
+      this.props.handleAuthProviderDone(redirectTo)
     }
   }
 
   render() {
-    const {authBase, provider, features} = this.props
+    const {authBase, provider, features, redirectTo} = this.props
     console.log('Auth:LoginPopup', provider)
     if (provider) {
       return <div>
         <EventListener target={window} onMessage={this.handleOnMessage}>
-          <NewWindow url={`${authBase}${provider.href}`} features={features}/>
+          <NewWindow url={`${authBase}${provider.href}?authView=window`} features={features}/>
         </EventListener>
       </div>
+    } else if (redirectTo) {
+      window.location = redirectTo
     } else {
       return <div/>
     }
@@ -608,14 +640,22 @@ const authReady = store.dispatch((dispatch, getState) => {
   })
 })
 
-function authGetProviderToken(providerName) {
+function authGetToken(name) {
   return store.dispatch(authTryCatch((dispatch, getState) => authReady.then(() => {
-    return authFetch(dispatch, getState, '/auth/token/' + providerName).then(result => result.providerToken)
+    const {auth: {tokens: {[name]: token}}} = getState()
+    if (token !== undefined) {
+      return token
+    }
+    return authFetch(dispatch, getState, '/auth/token/' + name).then(result => {
+      const {token} = result
+      dispatch({type: ACTIONS.AUTH_TOKEN, name, token})
+      return token
+    })
   })))
 }
 
 export default {
-  getProviderToken: authGetProviderToken,
+  getToken: authGetToken,
   authReady,
   AuthAvatar: authPick('me')(AuthAvatar),
   AuthSecurityWrapper: authPick('login', 'logout', 'me')(AuthSecurityWrapper),
