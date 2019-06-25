@@ -657,7 +657,7 @@ export default {
   getToken: authGetToken,
   authReady,
   AuthAvatar: authPick('me')(AuthAvatar),
-  AuthSecurityWrapper: authPick('login', 'logout', 'me')(AuthSecurityWrapper),
+  AuthSecurityWrapper: authPick('ready', 'login', 'logout', 'me')(AuthSecurityWrapper),
   LogoutButton: authPick('logout', 'me')(LogoutButton),
   LoginButton: authPick('login', 'me')(LoginButton),
   LoginDialog: authPick('dialog')(LoginDialog),
