@@ -6,7 +6,7 @@
   "scripts": {
     "start": "webpack-dev-server --hot --progress --colors",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "transpile": "babel src -d dist --copy-files",
+    "transpile": "babel src -d dist --copy-files --source-maps",
     "webpack": "webpack"
   },
   "author": "",
