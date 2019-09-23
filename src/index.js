@@ -125,7 +125,6 @@ export function reducer(state = defaultState, action) {
     default:
       return state
   }
-  console.log('Auth:reducer', action, state)
   return state
 }
 
