@@ -155,7 +155,10 @@ const authTryCatch = handler => {
   }
 }
 const authFetch = (dispatch, getState, path) => {
-  const {auth: {config: {authBase}}} = getState()
+  const {auth: {config: {authBase}, e}} = getState()
+  if (authBase === undefined) {
+    throw new Error('Please define process.env.AUTH_BASE')
+  }
   return fetch(`${authBase}${path}`, {
       credentials: 'include',
       headers: {
