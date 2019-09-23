@@ -630,14 +630,24 @@ class AuthTimeRemaining extends React.Component {
   }
 }
 
-const authReady = store.dispatch((dispatch, getState) => {
-  return Promise.all([
-    dispatch(authUserMe()),
-    dispatch(authIsSessionActive()),
-  ]).then(() => {
-    dispatch({type: ACTIONS.AUTH_READY})
-  })
-})
+const authReady = (() => {
+  let authReady
+  const ifThen = (ifThen, ifCatch) => {
+    if (!authReady) {
+      authReady = store.dispatch((dispatch, getState) => {
+        return Promise.all([
+          dispatch(authUserMe()),
+          dispatch(authIsSessionActive()),
+        ]).then(() => {
+          dispatch({type: ACTIONS.AUTH_READY})
+        })
+      })
+    }
+    return authReady.then(ifThen, ifCatch)
+  }
+  const ifCatch = ifCatch => then(undefined, ifCatch)
+  return {then: ifThen, catch: ifCatch}
+})()
 
 function authGetToken(name) {
   return store.dispatch(authTryCatch((dispatch, getState) => authReady.then(() => {
