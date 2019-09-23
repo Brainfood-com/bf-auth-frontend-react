@@ -1114,13 +1114,32 @@ _defineProperty(AuthTimeRemaining, "defaultProps", {
   timeLeft: null
 });
 
-var authReady = store.dispatch(function (dispatch, getState) {
-  return _Promise.all([dispatch(authUserMe()), dispatch(authIsSessionActive())]).then(function () {
-    dispatch({
-      type: ACTIONS.AUTH_READY
-    });
-  });
-});
+var authReady = function () {
+  var authReady;
+
+  var ifThen = function ifThen(_ifThen, ifCatch) {
+    if (!authReady) {
+      authReady = store.dispatch(function (dispatch, getState) {
+        return _Promise.all([dispatch(authUserMe()), dispatch(authIsSessionActive())]).then(function () {
+          dispatch({
+            type: ACTIONS.AUTH_READY
+          });
+        });
+      });
+    }
+
+    return authReady.then(_ifThen, ifCatch);
+  };
+
+  var ifCatch = function ifCatch(_ifCatch) {
+    return then(undefined, _ifCatch);
+  };
+
+  return {
+    then: ifThen,
+    "catch": ifCatch
+  };
+}();
 
 function authGetToken(name) {
   return store.dispatch(authTryCatch(function (dispatch, getState) {
