@@ -199,7 +199,6 @@ export function reducer() {
       return state;
   }
 
-  console.log('Auth:reducer', action, state);
   return state;
 }
 var enhancer = compose(applyMiddleware(thunk));
@@ -232,7 +231,13 @@ var authFetch = function authFetch(dispatch, getState, path) {
   var _context2;
 
   var _getState = getState(),
-      authBase = _getState.auth.config.authBase;
+      _getState$auth = _getState.auth,
+      authBase = _getState$auth.config.authBase,
+      e = _getState$auth.e;
+
+  if (authBase === undefined) {
+    throw new Error('Please define process.env.AUTH_BASE');
+  }
 
   return fetch(_concatInstanceProperty(_context2 = "".concat(authBase)).call(_context2, path), {
     credentials: 'include',
